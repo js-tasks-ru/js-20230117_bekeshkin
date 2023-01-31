@@ -4,12 +4,9 @@
  * @returns {function} - function-getter which allow get value from object by set path
  */
 export function createGetter(path) {
+  const props = path.split('.');
   return function (obj) {
-    if (path === 'undefined') {
-      return obj;
-    }
-    const props = path.split('.');
-    return getValue(obj, props);
+    return getValue(obj, props, 0);
   };
 }
 
@@ -20,18 +17,9 @@ export function createGetter(path) {
  *              '[name1, name2, name3, ..., nameN]',где 'nameN' - конечное свойство,
  * @returns {*|undefined}
  */
-function getValue(obj, props) {
-  // если объект неопределен, возвращаем его
-  if (obj === undefined) {
-    return obj;
+function getValue(obj, props, index) {
+  if (obj !== undefined && props[index] !== undefined) {
+    return getValue(obj[props[index]], props, ++index);
   }
-  // если конечное свойство
-  if (props.length === 1) {
-    // то возвращаем значение конечное свойства
-    return obj[props[0]];
-  } else {
-    // иначе ищем дальше в объекте, который располагается в конечном свойстве
-    const [prop, ...other] = props;
-    return getValue(obj[prop], other);
-  }
+  return obj;
 }
