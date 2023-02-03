@@ -16,12 +16,21 @@ export default class SortableTable {
       .map(header => {
         return `<div class="sortable-table__cell" data-id="${header.id}" data-sortable="${header.sortable}" ${this.getOrder(header.id)}>
                     <span>${header.title}</span>
+                     ${this.getArrow(header.id)}
                 </div>`;
       }).join("");
   }
 
   getOrder(id) {
     return this.sortedOrder && this.sortedHeader && this.sortedHeader.id === id ? `data-order="${this.sortedOrder}"` : "";
+  }
+
+  getArrow(id) {
+    return this.sortedOrder && this.sortedHeader && this.sortedHeader.id === id ? `
+        <span data-element="arrow" class="sortable-table__sort-arrow">
+          <span class="sort-arrow"></span>
+        </span>
+    ` : "";
   }
 
   getRows() {
@@ -58,7 +67,9 @@ export default class SortableTable {
     const wrapper = document.createElement('div');
     wrapper.innerHTML = this.template;
     this.element = wrapper.firstElementChild;
-    this.subElements = this.element.lastElementChild;
+    this.subElements = {
+      body: this.element.lastElementChild
+    };
   }
 
   sort(field, order = 'asc') {
@@ -76,15 +87,17 @@ export default class SortableTable {
         return coef * (a[this.sortedHeader.id] - b[this.sortedHeader.id]);
       }
     });
-
+    const parent = this.element.parentNode;
+    this.remove();
     this.render();
+    parent.append(this.element);
   }
 
   destroy() {
     this.remove();
     this.headerConfig = undefined;
     this.data = undefined;
-    this.element = {};
+    //this.element = {};
     this.subElements = {};
     this.sortedHeader = null;
     this.sortedOrder = null;
