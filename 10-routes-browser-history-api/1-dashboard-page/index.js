@@ -9,13 +9,15 @@ const BACKEND_URL = 'https://course-js.javascript.ru/';
 
 export default class Page {
 
+  element
   subElements = {};
+  components = {};
   rangePeriod;
 
   constructor() {
     const today = new Date();
     const monthAgo = new Date();
-    monthAgo.setDate(today.getDate() - 30);
+    monthAgo.setMonth(today.getMonth() - 1);
 
     this.rangePeriod = {
       from: monthAgo,
@@ -27,38 +29,7 @@ export default class Page {
       order: 'asc'
     };
 
-    this.rangePicker = new RangePicker(this.rangePeriod);
-    this.sortableTable = new SortableTable(header, {
-      url: 'api/dashboard/bestsellers',
-      sorted: this.sorted,
-      isSortLocally: true,
-      step: 30,
-      start: 0
-    });
-
-    this.ordersChart = new ColumnChart({
-      label: 'orders',
-      link: '#',
-      formatHeading: data => data,
-      url: 'api/dashboard/orders',
-      range: this.rangePeriod,
-    });
-
-    this.salesChart = new ColumnChart({
-      label: 'sales',
-      link: '',
-      formatHeading: data => data,
-      url: 'api/dashboard/sales',
-      range: this.rangePeriod,
-    });
-
-    this.customersChart = new ColumnChart({
-      label: 'customers',
-      link: '',
-      formatHeading: data => data,
-      url: 'api/dashboard/customers',
-      range: this.rangePeriod,
-    });
+    this.initComponents();
   }
 
 
@@ -96,20 +67,18 @@ export default class Page {
 
   remove() {
     if (this.element) {
-      this.subElements.rangePicker.remove();
-      this.subElements.ordersChart.remove();
-      this.subElements.salesChart.remove();
-      this.subElements.customersChart.remove();
-      this.subElements.sortableTable.remove();
       this.element.remove();
     }
   }
 
   destroy() {
     this.remove();
-
     this.element = null;
     this.subElements = null;
+
+    Object.values(this.components).forEach(component => component.destroy());
+
+    this.components = null;
     this.rangePeriod = null;
   }
 
@@ -118,27 +87,73 @@ export default class Page {
     wrapper.innerHTML = this.template;
     this.element = wrapper.firstElementChild;
     this.subElements = this.getSubElements();
-    this.subElements.rangePicker.append(this.rangePicker.element);
-    this.subElements.ordersChart.append(this.ordersChart.element);
-    this.subElements.salesChart.append(this.salesChart.element);
-    this.subElements.customersChart.append(this.customersChart.element);
-    this.subElements.sortableTable.append(this.sortableTable.element);
+    this.renderComponents();
     this.element.addEventListener('date-select', this.dateSelectEvent);
     return this.element;
   }
 
-  async updatePage(event) {
-    const ordersChartPromise = this.ordersChart.loadData(event.detail.from, event.detail.to);
-    const salesChartPromise = this.salesChart.loadData(event.detail.from, event.detail.to);
-    const customersChartPromise = this.customersChart.loadData(event.detail.from, event.detail.to);
-    const sortableTablePromise = this.sortableTable.loadData(event.detail.from, event.detail.to, this.sorted.id, this.sorted.order);
-    const [ordersData, salesData, customersData, sortableTableData] = await Promise.all([ordersChartPromise, salesChartPromise, customersChartPromise, sortableTablePromise]);
-    console.log(sortableTableData);
-    this.sortableTable.renderRows(sortableTableData);
+  async updatePage(from, to) {
+    const ordersChartPromise = this.components.ordersChart.loadData(from, to);
+    const salesChartPromise = this.components.salesChart.loadData(from, to);
+    const customersChartPromise = this.components.customersChart.loadData(from, to);
+    const sortableTablePromise = this.components.sortableTable.loadData(from, to, this.sorted.id, this.sorted.order);
+    const resultOfPromises = await Promise.all([ordersChartPromise, salesChartPromise, customersChartPromise, sortableTablePromise]);
+    this.components.sortableTable.renderRows(resultOfPromises.at(-1));
   }
 
   dateSelectEvent = (event) => {
-    this.updatePage(event);
+    this.updatePage(event.detail.from, event.detail.to);
   };
+
+  initComponents() {
+    const rangePicker = new RangePicker(this.rangePeriod);
+
+    const sortableTable = new SortableTable(header, {
+      url: 'api/dashboard/bestsellers',
+      sorted: this.sorted,
+      isSortLocally: true,
+      step: 30,
+      start: 0
+    });
+
+    const ordersChart = new ColumnChart({
+      label: 'orders',
+      link: '#',
+      formatHeading: data => data,
+      url: 'api/dashboard/orders',
+      range: this.rangePeriod,
+    });
+
+    const salesChart = new ColumnChart({
+      label: 'sales',
+      link: '',
+      formatHeading: data => data,
+      url: 'api/dashboard/sales',
+      range: this.rangePeriod,
+    });
+
+    const customersChart = new ColumnChart({
+      label: 'customers',
+      link: '',
+      formatHeading: data => data,
+      url: 'api/dashboard/customers',
+      range: this.rangePeriod,
+    });
+    this.components = {
+      rangePicker,
+      sortableTable,
+      ordersChart,
+      salesChart,
+      customersChart
+    };
+  }
+
+  renderComponents() {
+    Object.keys(this.components).forEach(component => {
+      const root = this.subElements[component];
+      const {element} = this.components[component];
+      root.append(element);
+    });
+  }
 
 }
